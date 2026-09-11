@@ -1,0 +1,6 @@
+{
+  "name": "サンプル設定",
+  "version": "1.0.0",
+  "enabled": true,
+  "items": ["a", "b", "c"]
+}

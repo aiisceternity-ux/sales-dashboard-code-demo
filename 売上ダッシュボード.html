@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>売上ダッシュボード</title>
+<style>
+html, body { background: #f9f9f7; }
+.viz-root {
+  color-scheme: light;
+  --surface-1:      #fcfcfb;
+  --page:           #f9f9f7;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --grid:           #e1e0d9;
+  --baseline:       #c3c2b7;
+  --border:         rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --surface-1:      #1a1a19;
+  --page:           #0d0d0d;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --grid:           #2c2c2a;
+  --baseline:       #383835;
+  --border:         rgba(255,255,255,0.10);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+.viz-root {
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 32px 20px 60px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; }
+h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.subtitle { color: var(--text-secondary); font-size: 13px; margin: 0 0 28px; }
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: proportional-nums; }
+.stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px 16px;
+  margin-bottom: 20px;
+}
+.card-title { font-size: 14px; font-weight: 700; margin: 0 0 2px; }
+.card-sub { font-size: 12px; color: var(--text-secondary); margin: 0 0 14px; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 760px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.axis-label { fill: var(--text-muted); font-size: 11px; }
+.grid-line { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--baseline); stroke-width: 1; }
+.value-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cat-label { fill: var(--text-secondary); font-size: 12px; }
+
+.bar { rx: 4; ry: 4; }
+.bar-row { cursor: pointer; }
+.bar-row rect { transition: opacity .15s; }
+.bar-row:hover rect { opacity: 0.82; }
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--text-primary);
+  color: var(--surface-1);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, -100%);
+  transition: opacity .1s;
+  z-index: 10;
+}
+.tooltip.show { opacity: 1; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+.line-dot { transition: r .1s; }
+.hover-target:hover .line-dot { r: 6; }
+
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; display: none; }
+table.data-table.show { display: table; }
+table.data-table th, table.data-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); color: var(--text-secondary); }
+table.data-table th { color: var(--text-muted); font-weight: 600; }
+table.data-table td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+.toggle-btn {
+  font-size: 11px; color: var(--text-muted); background: none; border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 8px; cursor: pointer; float: right; margin-top: -30px;
+}
+.toggle-btn:hover { color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<div class="viz-root">
+  <div class="wrap">
+    <h1>売上ダッシュボード</h1>
+    <p class="subtitle">売上データ.csv — 2026年1月〜3月・405件</p>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-label">合計売上</div>
+        <div class="stat-value">¥1,804,500</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">取引件数</div>
+        <div class="stat-value">405件</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">平均取引額</div>
+        <div class="stat-value">¥4,456</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">最も売れた商品</div>
+        <div class="stat-value" style="font-size:18px;">定期便（月1）</div>
+        <div class="stat-sub">¥360,000</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">月別売上推移</div>
+      <p class="card-sub">2026年1月〜3月</p>
+      <div id="chart-monthly"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">商品別売上ランキング</div>
+      <p class="card-sub">売上金額の多い順</p>
+      <button class="toggle-btn" data-target="table-product">テーブル表示</button>
+      <div id="chart-product"></div>
+      <table class="data-table" id="table-product">
+        <thead><tr><th>商品名</th><th>売上金額</th><th>数量</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">カテゴリ別売上</div>
+        <button class="toggle-btn" data-target="table-category">テーブル表示</button>
+        <div id="chart-category"></div>
+        <table class="data-table" id="table-category">
+          <thead><tr><th>カテゴリ</th><th>売上金額</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">地域別売上</div>
+        <button class="toggle-btn" data-target="table-region">テーブル表示</button>
+        <div id="chart-region"></div>
+        <table class="data-table" id="table-region">
+          <thead><tr><th>地域</th><th>売上金額</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="tooltip" id="tooltip"></div>
+</div>
+
+<script>
+const monthly = [["2026-01", 554000], ["2026-02", 638040], ["2026-03", 612460]];
+const monthLabels = {"2026-01": "1月", "2026-02": "2月", "2026-03": "3月"};
+
+const product = [
+  ["定期便（月1）", 360000, 100],
+  ["ドリップパックギフト", 284800, 89],
+  ["ギフトセット", 283500, 63],
+  ["コーヒー豆200g", 222000, 148],
+  ["タンブラー", 207200, 74],
+  ["マグカップ", 174600, 97],
+  ["ドリップコーヒー12杯", 154800, 129],
+  ["カフェオレベース", 117600, 120]
+];
+
+const category = [
+  ["ギフト", 568300],
+  ["食品", 494400],
+  ["雑貨", 381800],
+  ["サブスク", 360000]
+];
+
+const region = [
+  ["東京", 554900],
+  ["大阪", 326220],
+  ["名古屋", 297340],
+  ["福岡", 287420],
+  ["その他", 178120],
+  ["札幌", 160500]
+];
+
+const seriesColors = ["var(--series-1)","var(--series-2)","var(--series-3)","var(--series-4)","var(--series-5)","var(--series-6)","var(--series-7)","var(--series-8)"];
+
+const tooltip = document.getElementById("tooltip");
+function showTip(evt, html) {
+  tooltip.innerHTML = html;
+  tooltip.classList.add("show");
+  const root = document.querySelector(".viz-root");
+  const rootRect = root.getBoundingClientRect();
+  tooltip.style.left = (evt.clientX - rootRect.left) + "px";
+  tooltip.style.top = (evt.clientY - rootRect.top - 10) + "px";
+}
+function hideTip() { tooltip.classList.remove("show"); }
+function fmt(n) { return "¥" + n.toLocaleString("ja-JP"); }
+
+// ---- Monthly line chart ----
+function renderMonthly() {
+  const w = 1000, h = 220, padL = 60, padR = 20, padT = 20, padB = 30;
+  const max = Math.max(...monthly.map(d => d[1])) * 1.15;
+  const x = i => padL + (i / (monthly.length - 1)) * (w - padL - padR);
+  const y = v => padT + (1 - v / max) * (h - padT - padB);
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const yy = padT + f * (h - padT - padB);
+    const val = Math.round(max * (1 - f));
+    return `<line class="grid-line" x1="${padL}" x2="${w-padR}" y1="${yy}" y2="${yy}"/>
+      <text class="axis-label" x="${padL-8}" y="${yy+4}" text-anchor="end">${val >= 1000 ? Math.round(val/1000)+'k' : val}</text>`;
+  }).join("");
+
+  const points = monthly.map((d, i) => `${x(i)},${y(d[1])}`).join(" ");
+
+  const dots = monthly.map((d, i) => `
+    <g class="hover-target"
+       onmousemove='showTip(event, "<b>${monthLabels[d[0]]}</b><br>${fmt(d[1])}")'
+       onmouseleave="hideTip()">
+      <circle cx="${x(i)}" cy="${y(d[1])}" r="18" fill="transparent"/>
+      <circle class="line-dot" cx="${x(i)}" cy="${y(d[1])}" r="4.5" fill="var(--series-1)" stroke="var(--surface-1)" stroke-width="2"/>
+      <text class="value-label" x="${x(i)}" y="${y(d[1]) - 16}" text-anchor="middle">${fmt(d[1])}</text>
+      <text class="axis-label" x="${x(i)}" y="${h-8}" text-anchor="middle">${monthLabels[d[0]]}</text>
+    </g>
+  `).join("");
+
+  document.getElementById("chart-monthly").innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block;">
+      ${gridLines}
+      <line class="baseline" x1="${padL}" x2="${w-padR}" y1="${h-padB}" y2="${h-padB}"/>
+      <polyline points="${points}" fill="none" stroke="var(--series-1)" stroke-width="2"/>
+      ${dots}
+    </svg>`;
+}
+
+// ---- Horizontal bar chart (generic) ----
+function renderHBar(containerId, data, opts) {
+  const w = 1000;
+  const rowH = opts.rowH || 40;
+  const padL = opts.padL || 140;
+  const padR = 90;
+  const gap = 10;
+  const h = data.length * rowH + gap * (data.length - 1) + 10;
+  const max = Math.max(...data.map(d => d[1])) * 1.08;
+  const barMaxW = w - padL - padR;
+
+  const rows = data.map((d, i) => {
+    const barW = (d[1] / max) * barMaxW;
+    const yy = i * (rowH + gap);
+    const color = opts.color ? opts.color(i) : "var(--series-1)";
+    const extra = d[2] !== undefined ? `<br>数量: ${d[2]}` : "";
+    return `
+      <g class="bar-row"
+         onmousemove='showTip(event, "<b>${d[0]}</b><br>${fmt(d[1])}${extra}")'
+         onmouseleave="hideTip()">
+        <text class="cat-label" x="${padL - 10}" y="${yy + rowH/2 + 4}" text-anchor="end">${d[0]}</text>
+        <rect class="bar" x="${padL}" y="${yy + 6}" width="${barMaxW}" height="${rowH - 12}" fill="var(--grid)" rx="4"/>
+        <rect class="bar" x="${padL}" y="${yy + 6}" width="${barW}" height="${rowH - 12}" fill="${color}" rx="4"/>
+        <text class="value-label" x="${padL + barW + 10}" y="${yy + rowH/2 + 4}">${fmt(d[1])}</text>
+      </g>`;
+  }).join("");
+
+  document.getElementById(containerId).innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block;">
+      ${rows}
+    </svg>`;
+}
+
+renderMonthly();
+renderHBar("chart-product", product, { padL: 160, color: (i) => seriesColors[i] });
+renderHBar("chart-category", category, { padL: 90, color: () => "var(--series-1)" });
+renderHBar("chart-region", region, { padL: 80, color: () => "var(--series-3)" });
+
+// ---- Tables ----
+function fillTable(id, data, cols) {
+  const tbody = document.querySelector("#" + id + " tbody");
+  tbody.innerHTML = data.map(d => {
+    const cells = cols.map((c, idx) => idx === 0
+      ? `<td>${d[0]}</td>`
+      : `<td class="num">${d[idx].toLocaleString("ja-JP")}${idx===1?"円":""}</td>`
+    ).join("");
+    return `<tr>${cells}</tr>`;
+  }).join("");
+}
+fillTable("table-product", product, ["商品名","売上金額","数量"]);
+fillTable("table-category", category, ["カテゴリ","売上金額"]);
+fillTable("table-region", region, ["地域","売上金額"]);
+
+document.querySelectorAll(".toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const el = document.getElementById(btn.dataset.target);
+    el.classList.toggle("show");
+    btn.textContent = el.classList.contains("show") ? "グラフ表示" : "テーブル表示";
+  });
+});
+</script>
+
+</body>
+</html>

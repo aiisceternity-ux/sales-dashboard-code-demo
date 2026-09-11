@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ストップウォッチ</title>
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffd60a;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+  }
+  .container {
+    text-align: center;
+  }
+  #display {
+    font-size: 8rem;
+    color: #1e1e2e;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.2s;
+  }
+  #display.danger {
+    color: #e53935;
+    animation: blink 0.6s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+  button {
+    padding: 12px 28px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #fff;
+    transition: opacity 0.15s;
+  }
+  button:active {
+    opacity: 0.7;
+  }
+  #startBtn { background: #4caf50; }
+  #stopBtn { background: #e53935; }
+  #resetBtn { background: #757575; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div id="display">00:00.00</div>
+    <div class="buttons">
+      <button id="startBtn">スタート</button>
+      <button id="stopBtn">ストップ</button>
+      <button id="resetBtn">リセット</button>
+    </div>
+  </div>
+
+<script>
+  let elapsed = 0;
+  let running = false;
+  let startTime = 0;
+  let timerId = null;
+
+  const display = document.getElementById('display');
+
+  function format(ms) {
+    const totalCentis = Math.floor(ms / 10);
+    const minutes = Math.floor(totalCentis / 6000);
+    const seconds = Math.floor((totalCentis % 6000) / 100);
+    const centis = totalCentis % 100;
+    const pad = (n, len = 2) => String(n).padStart(len, '0');
+    return `${pad(minutes)}:${pad(seconds)}.${pad(centis)}`;
+  }
+
+  function tick() {
+    const ms = Date.now() - startTime + elapsed;
+    display.textContent = format(ms);
+    display.classList.toggle('danger', ms >= 10000);
+    timerId = requestAnimationFrame(tick);
+  }
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    if (running) return;
+    running = true;
+    startTime = Date.now();
+    tick();
+  });
+
+  document.getElementById('stopBtn').addEventListener('click', () => {
+    if (!running) return;
+    running = false;
+    elapsed += Date.now() - startTime;
+    cancelAnimationFrame(timerId);
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    running = false;
+    elapsed = 0;
+    cancelAnimationFrame(timerId);
+    display.textContent = format(0);
+    display.classList.remove('danger');
+  });
+</script>
+</body>
+</html>

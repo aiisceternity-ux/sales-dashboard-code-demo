@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>売上ダッシュボード</title>
+<style>
+html, body { background: #f9f9f7; }
+.viz-root {
+  color-scheme: light;
+  --surface-1:      #fcfcfb;
+  --page:           #f9f9f7;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --grid:           #e1e0d9;
+  --baseline:       #c3c2b7;
+  --border:         rgba(11,11,11,0.10);
+  --accent:         #2a78d6;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --accent:         #3987e5;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --surface-1:      #1a1a19;
+  --page:           #0d0d0d;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --grid:           #2c2c2a;
+  --baseline:       #383835;
+  --border:         rgba(255,255,255,0.10);
+  --accent:         #3987e5;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+.viz-root {
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 32px 20px 60px;
+  min-height: 100vh;
+}
+.wrap { max-width: 1080px; margin: 0 auto; }
+h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.subtitle { color: var(--text-secondary); font-size: 13px; margin: 0 0 20px; }
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  font-size: 13px;
+}
+.controls label { color: var(--text-secondary); }
+.controls select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.upload-btn {
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.upload-btn:hover { border-color: var(--accent); }
+.sep { color: var(--text-muted); }
+.status-msg { color: var(--text-muted); margin-left: auto; }
+.status-msg.error { color: var(--series-8); }
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-tile {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: proportional-nums; }
+.stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px 16px;
+  margin-bottom: 20px;
+}
+.card-title { font-size: 14px; font-weight: 700; margin: 0 0 2px; }
+.card-sub { font-size: 12px; color: var(--text-secondary); margin: 0 0 14px; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 760px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+.axis-label { fill: var(--text-muted); font-size: 11px; }
+.grid-line { stroke: var(--grid); stroke-width: 1; }
+.baseline { stroke: var(--baseline); stroke-width: 1; }
+.value-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cat-label { fill: var(--text-secondary); font-size: 12px; }
+
+.bar { rx: 4; ry: 4; }
+.bar-row { cursor: pointer; }
+.bar-row rect { transition: opacity .15s; }
+.bar-row:hover rect { opacity: 0.82; }
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--text-primary);
+  color: var(--surface-1);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, -100%);
+  transition: opacity .1s;
+  z-index: 10;
+}
+.tooltip.show { opacity: 1; }
+
+.line-dot { transition: r .1s; }
+.hover-target:hover .line-dot { r: 6; }
+
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; display: none; }
+table.data-table.show { display: table; }
+table.data-table th, table.data-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); color: var(--text-secondary); }
+table.data-table th { color: var(--text-muted); font-weight: 600; }
+table.data-table td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+.toggle-btn {
+  font-size: 11px; color: var(--text-muted); background: none; border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 8px; cursor: pointer; float: right; margin-top: -30px;
+}
+.toggle-btn:hover { color: var(--text-primary); }
+
+.empty-state { color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="viz-root">
+  <div class="wrap">
+    <h1>売上ダッシュボード</h1>
+    <p class="subtitle" id="subtitle">読み込み中...</p>
+
+    <div class="controls">
+      <label for="file-select">サーバー上のCSV:</label>
+      <select id="file-select"><option>読み込み中...</option></select>
+      <span class="sep">または</span>
+      <label class="upload-btn">
+        📂 CSVをアップロード
+        <input type="file" id="file-upload" accept=".csv" hidden>
+      </label>
+      <span class="status-msg" id="status-msg"></span>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-tile">
+        <div class="stat-label">合計売上</div>
+        <div class="stat-value" id="stat-total">—</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">取引件数</div>
+        <div class="stat-value" id="stat-count">—</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">平均取引額</div>
+        <div class="stat-value" id="stat-avg">—</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">最も売れた商品</div>
+        <div class="stat-value" id="stat-top-name" style="font-size:18px;">—</div>
+        <div class="stat-sub" id="stat-top-value"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">月別売上推移</div>
+      <p class="card-sub" id="monthly-sub"></p>
+      <div id="chart-monthly"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">商品別売上ランキング</div>
+      <p class="card-sub">売上金額の多い順</p>
+      <button class="toggle-btn" data-target="table-product">テーブル表示</button>
+      <div id="chart-product"></div>
+      <table class="data-table" id="table-product">
+        <thead><tr><th>商品名</th><th>売上金額</th><th>数量</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">カテゴリ別売上</div>
+        <button class="toggle-btn" data-target="table-category">テーブル表示</button>
+        <div id="chart-category"></div>
+        <table class="data-table" id="table-category">
+          <thead><tr><th>カテゴリ</th><th>売上金額</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">地域別売上</div>
+        <button class="toggle-btn" data-target="table-region">テーブル表示</button>
+        <div id="chart-region"></div>
+        <table class="data-table" id="table-region">
+          <thead><tr><th>地域</th><th>売上金額</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="tooltip" id="tooltip"></div>
+</div>
+
+<script>
+const seriesColors = ["var(--series-1)","var(--series-2)","var(--series-3)","var(--series-4)","var(--series-5)","var(--series-6)","var(--series-7)","var(--series-8)"];
+const REQUIRED_COLS = ["日付","商品名","カテゴリ","地域","数量","単価","売上金額"];
+
+const tooltip = document.getElementById("tooltip");
+function showTip(evt, html) {
+  tooltip.innerHTML = html;
+  tooltip.classList.add("show");
+  const root = document.querySelector(".viz-root");
+  const rootRect = root.getBoundingClientRect();
+  tooltip.style.left = (evt.clientX - rootRect.left) + "px";
+  tooltip.style.top = (evt.clientY - rootRect.top - 10) + "px";
+}
+function hideTip() { tooltip.classList.remove("show"); }
+function fmt(n) { return "¥" + n.toLocaleString("ja-JP"); }
+function setStatus(msg, isError) {
+  const el = document.getElementById("status-msg");
+  el.textContent = msg || "";
+  el.classList.toggle("error", !!isError);
+}
+
+// ---- CSV parsing (handles simple quoted fields) ----
+function splitCSVLine(line) {
+  const result = [];
+  let cur = "", inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { result.push(cur); cur = ""; }
+      else cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, "\n").replace(/^﻿/, "").split("\n").filter(l => l.trim().length > 0);
+  if (lines.length < 1) return [];
+  const headers = splitCSVLine(lines[0]).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cells = splitCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (cells[i] ?? "").trim());
+    return obj;
+  });
+}
+
+// ---- Aggregation ----
+function aggregate(rows) {
+  let total = 0, count = 0;
+  const monthly = {}, product = {}, productQty = {}, category = {}, region = {};
+  let minDate = null, maxDate = null;
+
+  rows.forEach(r => {
+    const amount = parseInt(r["売上金額"], 10);
+    const date = r["日付"];
+    if (!date || isNaN(amount)) return;
+    total += amount;
+    count++;
+    if (!minDate || date < minDate) minDate = date;
+    if (!maxDate || date > maxDate) maxDate = date;
+
+    const month = date.slice(0, 7);
+    monthly[month] = (monthly[month] || 0) + amount;
+
+    const name = r["商品名"] || "(不明)";
+    product[name] = (product[name] || 0) + amount;
+    productQty[name] = (productQty[name] || 0) + (parseInt(r["数量"], 10) || 0);
+
+    const cat = r["カテゴリ"] || "(不明)";
+    category[cat] = (category[cat] || 0) + amount;
+
+    const reg = r["地域"] || "(不明)";
+    region[reg] = (region[reg] || 0) + amount;
+  });
+
+  const monthlyArr = Object.entries(monthly).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  const productArr = Object.entries(product)
+    .map(([k, v]) => [k, v, productQty[k]])
+    .sort((a, b) => b[1] - a[1]);
+  const categoryArr = Object.entries(category).sort((a, b) => b[1] - a[1]);
+  const regionArr = Object.entries(region).sort((a, b) => b[1] - a[1]);
+
+  return {
+    total, count, avg: count ? Math.round(total / count) : 0,
+    minDate, maxDate,
+    monthly: monthlyArr, product: productArr, category: categoryArr, region: regionArr,
+  };
+}
+
+function monthLabel(m) {
+  const [y, mo] = m.split("-");
+  return `${parseInt(mo, 10)}月`;
+}
+function dateLabel(d) {
+  if (!d) return "";
+  const [y, m, day] = d.split("-");
+  return `${y}年${parseInt(m,10)}月${parseInt(day,10)}日`;
+}
+
+// ---- Charts ----
+function renderMonthly(monthly) {
+  const el = document.getElementById("chart-monthly");
+  if (!monthly.length) { el.innerHTML = '<div class="empty-state">データがありません</div>'; return; }
+
+  const w = 1000, h = 220, padL = 60, padR = 20, padT = 20, padB = 30;
+  const max = Math.max(...monthly.map(d => d[1])) * 1.15 || 1;
+  const denom = Math.max(monthly.length - 1, 1);
+  const x = i => monthly.length === 1 ? (padL + (w - padL - padR) / 2) : padL + (i / denom) * (w - padL - padR);
+  const y = v => padT + (1 - v / max) * (h - padT - padB);
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const yy = padT + f * (h - padT - padB);
+    const val = Math.round(max * (1 - f));
+    return `<line class="grid-line" x1="${padL}" x2="${w-padR}" y1="${yy}" y2="${yy}"/>
+      <text class="axis-label" x="${padL-8}" y="${yy+4}" text-anchor="end">${val >= 1000 ? Math.round(val/1000)+'k' : val}</text>`;
+  }).join("");
+
+  const points = monthly.map((d, i) => `${x(i)},${y(d[1])}`).join(" ");
+
+  const dots = monthly.map((d, i) => `
+    <g class="hover-target"
+       onmousemove='showTip(event, "<b>${monthLabel(d[0])}</b><br>${fmt(d[1])}")'
+       onmouseleave="hideTip()">
+      <circle cx="${x(i)}" cy="${y(d[1])}" r="18" fill="transparent"/>
+      <circle class="line-dot" cx="${x(i)}" cy="${y(d[1])}" r="4.5" fill="var(--series-1)" stroke="var(--surface-1)" stroke-width="2"/>
+      <text class="value-label" x="${x(i)}" y="${y(d[1]) - 16}" text-anchor="middle">${fmt(d[1])}</text>
+      <text class="axis-label" x="${x(i)}" y="${h-8}" text-anchor="middle">${monthLabel(d[0])}</text>
+    </g>
+  `).join("");
+
+  el.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block;">
+      ${gridLines}
+      <line class="baseline" x1="${padL}" x2="${w-padR}" y1="${h-padB}" y2="${h-padB}"/>
+      ${monthly.length > 1 ? `<polyline points="${points}" fill="none" stroke="var(--series-1)" stroke-width="2"/>` : ""}
+      ${dots}
+    </svg>`;
+}
+
+function renderHBar(containerId, data, opts) {
+  const el = document.getElementById(containerId);
+  if (!data.length) { el.innerHTML = '<div class="empty-state">データがありません</div>'; return; }
+
+  const w = 1000;
+  const rowH = opts.rowH || 40;
+  const padL = opts.padL || 140;
+  const padR = 90;
+  const gap = 10;
+  const h = data.length * rowH + gap * (data.length - 1) + 10;
+  const max = Math.max(...data.map(d => d[1])) * 1.08 || 1;
+  const barMaxW = w - padL - padR;
+
+  const rows = data.map((d, i) => {
+    const barW = (d[1] / max) * barMaxW;
+    const yy = i * (rowH + gap);
+    const color = opts.color ? opts.color(i) : "var(--series-1)";
+    const extra = d[2] !== undefined ? `<br>数量: ${d[2]}` : "";
+    const safeName = String(d[0]).replace(/"/g, "&quot;");
+    return `
+      <g class="bar-row"
+         onmousemove='showTip(event, "<b>${safeName}</b><br>${fmt(d[1])}${extra}")'
+         onmouseleave="hideTip()">
+        <text class="cat-label" x="${padL - 10}" y="${yy + rowH/2 + 4}" text-anchor="end">${d[0]}</text>
+        <rect class="bar" x="${padL}" y="${yy + 6}" width="${barMaxW}" height="${rowH - 12}" fill="var(--grid)" rx="4"/>
+        <rect class="bar" x="${padL}" y="${yy + 6}" width="${barW}" height="${rowH - 12}" fill="${color}" rx="4"/>
+        <text class="value-label" x="${padL + barW + 10}" y="${yy + rowH/2 + 4}">${fmt(d[1])}</text>
+      </g>`;
+  }).join("");
+
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;display:block;">${rows}</svg>`;
+}
+
+function fillTable(id, data, hasQty) {
+  const tbody = document.querySelector("#" + id + " tbody");
+  tbody.innerHTML = data.map(d => {
+    const qtyCell = hasQty ? `<td class="num">${(d[2] ?? 0).toLocaleString("ja-JP")}</td>` : "";
+    return `<tr><td>${d[0]}</td><td class="num">${d[1].toLocaleString("ja-JP")}円</td>${qtyCell}</tr>`;
+  }).join("");
+}
+
+// ---- Render everything from aggregated data ----
+function renderAll(agg, label) {
+  document.getElementById("subtitle").textContent =
+    `${label} — ${dateLabel(agg.minDate)}〜${dateLabel(agg.maxDate)} ・ ${agg.count}件`;
+
+  document.getElementById("stat-total").textContent = fmt(agg.total);
+  document.getElementById("stat-count").textContent = agg.count.toLocaleString("ja-JP") + "件";
+  document.getElementById("stat-avg").textContent = fmt(agg.avg);
+  if (agg.product.length) {
+    document.getElementById("stat-top-name").textContent = agg.product[0][0];
+    document.getElementById("stat-top-value").textContent = fmt(agg.product[0][1]);
+  } else {
+    document.getElementById("stat-top-name").textContent = "—";
+    document.getElementById("stat-top-value").textContent = "";
+  }
+
+  const monthCount = agg.monthly.length;
+  document.getElementById("monthly-sub").textContent =
+    monthCount ? `${monthLabel(agg.monthly[0][0])}〜${monthLabel(agg.monthly[monthCount-1][0])}` : "";
+
+  renderMonthly(agg.monthly);
+  renderHBar("chart-product", agg.product, { padL: 160, color: (i) => seriesColors[i % seriesColors.length] });
+  renderHBar("chart-category", agg.category, { padL: 90, color: () => "var(--series-1)" });
+  renderHBar("chart-region", agg.region, { padL: 80, color: () => "var(--series-3)" });
+
+  fillTable("table-product", agg.product, true);
+  fillTable("table-category", agg.category, false);
+  fillTable("table-region", agg.region, false);
+}
+
+function loadFromRows(rows, label) {
+  const headers = rows.length ? Object.keys(rows[0]) : [];
+  const missing = REQUIRED_COLS.filter(c => !headers.includes(c));
+  if (missing.length) {
+    setStatus(`列が不足しています: ${missing.join("、")}`, true);
+    return;
+  }
+  setStatus("");
+  renderAll(aggregate(rows), label);
+}
+
+// ---- Data sources: server file list + upload ----
+const select = document.getElementById("file-select");
+
+async function loadFileList() {
+  try {
+    const res = await fetch("/api/files");
+    const data = await res.json();
+    const files = data.files || [];
+    if (!files.length) {
+      select.innerHTML = '<option value="">CSVが見つかりません</option>';
+      setStatus("フォルダ内にCSVがありません。アップロードしてください。");
+      return;
+    }
+    select.innerHTML = files.map(f => `<option value="${f}">${f}</option>`).join("");
+    const preferred = files.find(f => f.includes("売上データ") && !f.includes("4-6")) || files[0];
+    select.value = preferred;
+    await loadFromServer(preferred);
+  } catch (e) {
+    select.innerHTML = '<option value="">サーバーに接続できません</option>';
+    setStatus("Pythonサーバーが起動していません。「python3 server.py」を実行し、http://127.0.0.1:8420/ を開いてください。", true);
+  }
+}
+
+async function loadFromServer(filename) {
+  if (!filename) return;
+  setStatus("読み込み中...");
+  try {
+    const res = await fetch("/api/csv?file=" + encodeURIComponent(filename));
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    loadFromRows(parseCSV(text), filename);
+  } catch (e) {
+    setStatus("読み込みに失敗しました: " + e.message, true);
+  }
+}
+
+select.addEventListener("change", () => loadFromServer(select.value));
+
+document.getElementById("file-upload").addEventListener("change", (evt) => {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    loadFromRows(parseCSV(reader.result), file.name + "（アップロード）");
+    select.value = "";
+  };
+  reader.onerror = () => setStatus("ファイルの読み込みに失敗しました", true);
+  reader.readAsText(file, "utf-8");
+});
+
+document.querySelectorAll(".toggle-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const el = document.getElementById(btn.dataset.target);
+    el.classList.toggle("show");
+    btn.textContent = el.classList.contains("show") ? "グラフ表示" : "テーブル表示";
+  });
+});
+
+loadFileList();
+</script>
+</body>
+</html>
